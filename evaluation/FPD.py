@@ -5,7 +5,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import numpy as np
 import torch
 from scipy.linalg import sqrtm
-from scipy.misc import imread
+#from scipy.misc import imread
 from torch.nn.functional import adaptive_avg_pool2d
 from evaluation.pointnet import PointNetCls
 from data.dataset_benchmark import BenchmarkDataset
@@ -103,12 +103,22 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
     sigma1 = np.atleast_2d(sigma1)
     sigma2 = np.atleast_2d(sigma2)
 
+    """ print("mu1", mu1)
+    print("mu2", mu2)
+    print("sigma1", sigma1)
+    print("sigma2", sigma2) """
+
+    print(mu1.shape, mu2.shape, sigma1.shape, sigma2.shape)
+
     assert mu1.shape == mu2.shape, \
         'Training and test mean vectors have different lengths'
     assert sigma1.shape == sigma2.shape, \
         'Training and test covariances have different dimensions'
 
     diff = mu1 - mu2
+
+    print(diff)
+    print(max(diff), min(diff))
 
     # Product might be almost singular
     covmean, _ = sqrtm(sigma1.dot(sigma2), disp=False)
@@ -127,6 +137,9 @@ def calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
         covmean = covmean.real
 
     tr_covmean = np.trace(covmean)
+
+    print(diff.dot(diff))
+    print(np.trace(sigma1) + np.trace(sigma2) - 2 * tr_covmean)
 
     return (diff.dot(diff) + np.trace(sigma1) +
             np.trace(sigma2) - 2 * tr_covmean)
@@ -179,8 +192,9 @@ def save_statistics(real_pointclouds, path, model, batch_size, dims, cuda):
 def calculate_fpd(pointclouds1, pointclouds2=None, batch_size=100, dims=1808, device=None):
     """Calculates the FPD of two pointclouds"""
 
-    PointNet_path = './evaluation/cls_model_39.pth'
-    statistic_save_path = './evaluation/pre_statistics.npz'
+    PointNet_path = '/home/ncaytuir/data-local/TreeGAN/evaluation/cls_model_39.pth'
+    #statistic_save_path = '/home/ncaytuir/data-local/TreeGAN/MyScripts/chair/ckpt_1199/pre_statistics.npz'
+    statistic_save_path = '/home/ncaytuir/data-local/TreeGAN/evaluation/pre_statistics.npz'
     model = PointNetCls(k=16)
     model.load_state_dict(torch.load(PointNet_path))
     
@@ -188,11 +202,15 @@ def calculate_fpd(pointclouds1, pointclouds2=None, batch_size=100, dims=1808, de
         model.to(device)
 
     m1, s1 = calculate_activation_statistics(pointclouds1, model, batch_size, dims, device)
+    #print("Media pcs: ", m1)
+    #print("Desviación estandar pcs: ", s1)
     if pointclouds2 is not None:
         m2, s2 = calculate_activation_statistics(pointclouds2, model, batch_size, dims, device)
     else: # Load saved statistics of real pointclouds.
         f = np.load(statistic_save_path)
         m2, s2 = f['m'][:], f['s'][:]
+        #print("Media statistics: ", m2)
+        #print("Desviación estandar statistics: ", s2)
         f.close()
         
     fid_value = calculate_frechet_distance(m1, s1, m2, s2)
